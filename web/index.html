@@ -1,0 +1,992 @@
+<!DOCTYPE html>
+
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Global Flu Tracker</title>
+<link href="https://www.w3schools.com/w3css/4/w3.css" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css?family=Lato" rel="stylesheet"/>
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet"/>
+<link href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" rel="stylesheet"/>
+<style>body,h1,h2,h3,h4,h5,h6 {font-family: "Lato", sans-serif;}
+        body, html {
+            height: 100%;
+            color: #333;
+            line-height: 1.8;
+        }
+
+        .w3-teal, .w3-hover-teal:hover {color:#fff !important; background-color:#00695c !important;}
+        .w3-dark-grey {background-color:#455a64 !important;}
+
+        /* Parallax Effects */
+        .bgimg-1, .bgimg-2, .bgimg-3 {
+            background-attachment: scroll !important;
+            background-position: center;
+            background-repeat: no-repeat;
+            background-size: cover;
+        }
+        .bgimg-1 {
+            background-image: url('https://images.unsplash.com/photo-1584036561566-baf8f5f1b144?ixlib=rb-4.0.3');
+            min-height: 100%;
+        }
+        .bgimg-2 {
+            background-image: url("https://images.unsplash.com/photo-1579548122080-c35fd6820ecb?ixlib=rb-4.0.3");
+            min-height: 400px;
+        }
+        .bgimg-3 {
+            background-image: url("https://images.unsplash.com/photo-1579684385127-1ef15d508118?ixlib=rb-4.0.3");
+            min-height: 400px;
+        }
+
+        /* Map Container */
+        #map { 
+            height: 500px; 
+            margin: 20px 0;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+
+        /* Risk Assessment */
+        .risk-panel {
+            margin: 15px 0;
+            padding: 15px;
+            border-radius: 5px;
+            transition: all 0.3s;
+        }
+        .risk-high {background-color: #ffebee; border-left: 5px solid #f44336;}
+        .risk-medium {background-color: #fff3e0; border-left: 5px solid #ff9800;}
+        .risk-low {background-color: #e8f5e9; border-left: 5px solid #4caf50;}
+
+        /* User Location Marker */
+        .user-marker {
+            font-size: 24px;
+            text-align: center;
+            color: #00695c;
+            text-shadow: 0 0 3px white, 0 0 5px white;
+        }
+
+        /* Data Toggle */
+        .data-toggle {
+            margin: 15px 0;
+            text-align: center;
+        }
+        .toggle-btn {
+            background-color: #f1f1f1;
+            border: none;
+            padding: 10px 20px;
+            cursor: pointer;
+            transition: 0.3s;
+        }
+        .toggle-btn.active {
+            background-color: #00695c;
+            color: white;
+        }
+
+        /* Resources Cards */
+        .resource-card {
+            min-height: 200px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+
+        @media (max-width: 600px) {
+            .bgimg-1, .bgimg-2, .bgimg-3 {
+                background-attachment: scroll;
+                min-height: 300px;
+            }
+        }
+    
+@media (max-width: 768px) {
+    .w3-col.m6, .w3-col.m4, .w3-col.m8, .w3-half, .w3-quarter {
+        width: 100% !important;
+        display: block;
+        margin-bottom: 10px;
+    }
+    .w3-row-padding, .w3-row {
+        display: flex;
+        flex-direction: column;
+    }
+    #map {
+        height: 350px !important;
+        width: 100% !important;
+    }
+    .bgimg-1, .bgimg-2, .bgimg-3 {
+        min-height: 300px !important;
+    }
+}
+
+/* DeepSeek Enhancements */
+
+    #map { 
+        height: 600px;  /* Increased map height */
+        margin: 20px 0;
+        border-radius: 12px;
+        box-shadow: 0 8px 16px rgba(0,0,0,0.2);
+        border: 2px solid #00695c;
+    }
+
+    .prediction-path {
+        stroke-dasharray: 10;
+        animation: dash 20s linear infinite;
+    }
+
+    @keyframes dash {
+        from { stroke-dashoffset: 1000; }
+        to { stroke-dashoffset: 0; }
+    }
+
+
+        50% { transform: scale(1.2); opacity: 1; }
+        100% { transform: scale(0.8); opacity: 0.7; }
+    }
+
+    .prediction-control {
+        position: absolute;
+        top: 100px;
+        right: 20px;
+        z-index: 1000;
+        background: white;
+        padding: 15px;
+        border-radius: 8px;
+        box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    }
+
+/* Dark Mode Styles */
+body.dark-mode {
+    background-color: #121212;
+    color: #e0e0e0;
+}
+body.dark-mode .w3-card, 
+body.dark-mode .w3-panel,
+body.dark-mode .w3-container {
+    background-color: #1e1e1e !important;
+    color: #e0e0e0 !important;
+}
+body.dark-mode .w3-teal {
+    background-color: #004d40 !important;
+}
+body.dark-mode .w3-white {
+    background-color: #2c2c2c !important;
+}
+body.dark-mode .w3-light-grey {
+    background-color: #333 !important;
+}
+body.dark-mode a {
+    color: #90caf9;
+}
+</style>
+</head>
+<body>
+<!-- Navbar -->
+<div class="w3-top">
+<div class="w3-bar w3-teal w3-card" id="navbar">
+<a class="w3-bar-item w3-button w3-hover-white w3-hide-medium w3-hide-large w3-right" href="javascript:void(0);" onclick="toggleMobileMenu()">
+<i class="fa fa-bars"></i>
+</a>
+<a class="w3-bar-item w3-button" href="#home"><i class="fa fa-home"></i> HOME</a>
+<a class="w3-bar-item w3-button w3-hide-small" href="#tracker"><i class="fa fa-map"></i> TRACKER</a>
+<a class="w3-bar-item w3-button w3-hide-small" href="#prevention"><i class="fa fa-shield-alt"></i> PREVENTION</a>
+<a class="w3-bar-item w3-button w3-hide-small" href="#data"><i class="fa fa-database"></i> DATA</a>
+<a class="w3-bar-item w3-button w3-hide-small" href="#resources"><i class="fa fa-book"></i> RESOURCES</a>
+<button class="w3-button w3-right w3-margin-right" onclick="toggleDarkMode()" title="Toggle Dark Mode">
+<i class="fa fa-adjust"></i>
+</button>
+</div>
+</div>
+<!-- Mobile Nav -->
+<div class="w3-bar-block w3-white w3-hide w3-hide-large w3-hide-medium" id="mobileNav">
+<a class="w3-bar-item w3-button" href="#tracker" onclick="toggleMobileMenu()">TRACKER</a>
+<a class="w3-bar-item w3-button" href="#prevention" onclick="toggleMobileMenu()">PREVENTION</a>
+<a class="w3-bar-item w3-button" href="#data" onclick="toggleMobileMenu()">DATA</a>
+<a class="w3-bar-item w3-button" href="#resources" onclick="toggleMobileMenu()">RESOURCES</a>
+</div>
+<!-- Header -->
+<header class="bgimg-1 w3-display-container w3-opacity-min" id="home">
+<div class="w3-display-middle w3-center" style="white-space:nowrap;">
+<span class="w3-padding-large w3-teal w3-xlarge w3-wide w3-animate-opacity">GLOBAL <span class="w3-hide-small">FLU</span> TRACKER</span>
+</div>
+</header>
+<!-- Tracker Section -->
+<div class="w3-content w3-container w3-padding-64" id="tracker">
+<h2 class="w3-center"><i class="fa fa-map-marked-alt"></i> LIVE OUTBREAK TRACKER</h2>
+
+<p class="w3-center"><em>Real-time monitoring updated: <span id="updateTime"></span></em></p>
+<!-- Data Toggle -->
+<div class="data-toggle">
+<button class="toggle-btn active" onclick="showData('human')"><i class="fa fa-user"></i> Human Cases</button>
+<button class="toggle-btn" onclick="showData('animal')"><i class="fa fa-paw"></i> Animal Cases</button>
+</div>
+<!-- Interactive Map -->
+<div class="w3-center w3-margin-top">
+<button class="w3-button w3-teal w3-xlarge w3-hover-shadow" onclick="runPrediction()">
+<i class="fa fa-forward"></i> Predict Flu Spread (5 Years)
+        </button>
+<div class="prediction-control">
+
+<div style="display: flex; justify-content: center; gap: 10px; flex-wrap: wrap; margin-top: 8px;">
+  <button class="w3-button w3-teal w3-hover-shadow" onclick="runAdvancedPrediction()">Run AI Pandemic Simulation</button>
+  <button class="w3-button w3-red w3-hover-shadow" onclick="clearAIPandemic()">Stop AI Pandemic Simulation</button>
+</div>
+
+
+<i class="fa fa-rocket"></i> Run AI Pandemic Simulation
+    </button>
+</div></div>
+<div id="map"></div>
+<!-- Location Search -->
+<div class="w3-panel w3-light-grey w3-padding-16">
+<h3><i class="fa fa-search-location"></i> Check Your Location</h3>
+<div class="w3-row-padding" style="margin:0 -16px 8px -16px">
+<div class="w3-half">
+<button class="w3-button w3-teal w3-block" onclick="getUserLocation()">
+<i class="fa fa-location-arrow"></i> Current Location
+                    </button>
+</div>
+<div class="w3-half">
+<div class="w3-row">
+<div class="w3-col s8">
+<input class="w3-input w3-border" id="locationInput" placeholder="Enter city or address" type="text"/>
+</div>
+<div class="w3-col s4">
+<button class="w3-button w3-teal w3-block" onclick="searchLocation()">
+<i class="fa fa-search"></i> Search
+                            </button>
+</div>
+</div>
+</div>
+</div>
+<!-- Risk Assessment -->
+<div class="w3-panel" id="riskAssessment">
+<p class="w3-center w3-text-grey">Enter a location to assess your risk level</p>
+</div>
+</div>
+<!-- Quick Stats -->
+<div class="w3-row w3-center w3-padding-16 w3-margin-top">
+<div class="w3-quarter w3-section">
+<span class="w3-xlarge" id="birdCases">247</span><br/>
+                Human Bird Flu Cases
+            </div>
+<div class="w3-quarter w3-section">
+<span class="w3-xlarge" id="swineCases">189</span><br/>
+                Human Swine Flu Cases
+            </div>
+<div class="w3-quarter w3-section">
+<span class="w3-xlarge" id="animalCases">15,000</span><br/>
+                Animal Flu Cases
+            </div>
+<div class="w3-quarter w3-section">
+<span class="w3-xlarge" id="highRisk">8</span><br/>
+                High Risk Areas
+            </div>
+</div>
+</div>
+<!-- Prevention Section -->
+<div class="bgimg-2 w3-display-container w3-opacity-min" id="prevention">
+<div class="w3-display-middle">
+<span class="w3-xxlarge w3-text-white w3-wide">PREVENTION</span>
+</div>
+</div>
+<div class="w3-content w3-container w3-padding-64">
+<h2 class="w3-center"><i class="fa fa-shield-alt"></i> PROTECTION GUIDELINES</h2>
+<div class="w3-row w3-padding-32">
+<div class="w3-col m6 w3-padding-large">
+<div class="w3-card w3-padding">
+<h3><i class="fa fa-dove w3-text-red"></i> Bird Flu Prevention</h3>
+<ul class="w3-ul">
+<li><i class="fa fa-ban"></i> Avoid contact with wild birds and poultry</li>
+<li><i class="fa fa-utensils"></i> Cook poultry to at least 165°F (74°C)</li>
+<li><i class="fa fa-flag"></i> Report sick or dead birds to authorities</li>
+</ul>
+</div>
+</div>
+<div class="w3-col m6 w3-padding-large">
+<div class="w3-card w3-padding">
+<h3><i class="fa fa-piggy-bank w3-text-orange"></i> Swine Flu Prevention</h3>
+<ul class="w3-ul">
+<li><i class="fa fa-syringe"></i> Get annual flu vaccination</li>
+<li><i class="fa fa-hands-wash"></i> Wash hands frequently with soap</li>
+<li><i class="fa fa-people-arrows"></i> Avoid close contact with sick individuals</li>
+</ul>
+</div>
+</div>
+</div>
+</div>
+<!-- Data Section -->
+<div class="bgimg-3 w3-display-container w3-opacity-min" id="data">
+<div class="w3-display-middle">
+<span class="w3-xxlarge w3-text-white w3-wide">FLU DATA</span>
+</div>
+</div>
+<div class="w3-content w3-container w3-padding-64">
+<h2 class="w3-center"><i class="fa fa-database"></i> GLOBAL FLU STATISTICS</h2>
+<div class="w3-row">
+<div class="w3-col m6 w3-padding">
+<div class="w3-card w3-padding">
+<h3><i class="fa fa-dove w3-text-red"></i> Bird Flu Data</h3>
+<p><strong>Human Cases (2023-2024):</strong></p>
+<ul class="w3-ul">
+<li>Cambodia: 16 cases</li>
+<li>USA: 58 cases</li>
+<li>UK: 4 cases</li>
+<li>China: 2 cases</li>
+</ul>
+<p><strong>Animal Impact:</strong></p>
+<p>Hundreds of millions of poultry culled worldwide since 2022</p>
+</div>
+</div>
+<div class="w3-col m6 w3-padding">
+<div class="w3-card w3-padding">
+<h3><i class="fa fa-piggy-bank w3-text-orange"></i> Swine Flu Data</h3>
+<p><strong>Human Cases (2023-2024):</strong></p>
+<ul class="w3-ul">
+<li>USA: 8 cases</li>
+<li>UK: 1 case</li>
+<li>Taiwan: 1 case</li>
+<li>Brazil: 2 cases</li>
+</ul>
+<p><strong>Animal Impact:</strong></p>
+<p>Endemic in pig populations worldwide, exact numbers unavailable</p>
+</div>
+</div>
+</div>
+<div class="w3-panel w3-light-grey w3-padding-16 w3-margin-top">
+<h3><i class="fa fa-exclamation-triangle"></i> High Risk Locations</h3>
+<div class="w3-row">
+<div class="w3-col m6 w3-padding">
+<h4>Bird Flu:</h4>
+<ul class="w3-ul">
+<li>Live poultry markets</li>
+<li>Backyard poultry farms</li>
+<li>Areas along migratory flyways</li>
+</ul>
+</div>
+<div class="w3-col m6 w3-padding">
+<h4>Swine Flu:</h4>
+<ul class="w3-ul">
+<li>Pig farms and barns</li>
+<li>Agricultural fairs</li>
+<li>Live swine markets</li>
+</ul>
+</div>
+</div>
+</div>
+</div>
+<!-- Resources Section -->
+<div class="w3-content w3-container w3-padding-64" id="resources">
+<h2 class="w3-center"><i class="fa fa-book"></i> RESOURCES</h2>
+<div class="w3-row-padding w3-center w3-margin-top">
+<div class="w3-half">
+<div class="w3-card w3-padding resource-card">
+<h3><i class="fa fa-globe"></i> WHO Prevention Measures</h3>
+<p>Official guidelines from the World Health Organization</p>
+<a class="w3-button w3-teal" href="https://www.who.int/health-topics/influenza-avian-and-other-zoonotic#tab=tab_1" target="_blank">View</a>
+</div>
+</div>
+<div class="w3-half">
+<div class="w3-card w3-padding resource-card">
+<h3><i class="fa fa-chart-line"></i> CDC Outbreak Data</h3>
+<p>Current outbreak statistics from the CDC</p>
+<a class="w3-button w3-teal" href="https://www.cdc.gov/bird-flu/" target="_blank">Explore</a>
+</div>
+</div>
+</div>
+<div class="w3-panel w3-light-grey w3-padding-16 w3-margin-top">
+<h3><i class="fa fa-bell"></i> Alerts</h3>
+<p>Subscribe to receive outbreak notifications</p>
+<form id="alertForm" onsubmit="return subscribeAlerts(event)">
+<div class="w3-row">
+<div class="w3-col s8">
+<input class="w3-input w3-border" id="alertEmail" placeholder="Enter your email" required="" type="email"/>
+</div>
+<div class="w3-col s4">
+<button class="w3-button w3-teal w3-block" type="submit">
+<i class="fa fa-envelope"></i> Subscribe
+                        </button>
+</div>
+</div>
+</form>
+<div class="w3-panel w3-round" id="subscriptionMessage" style="display:none; margin-top:10px;"></div>
+</div>
+</div>
+<!-- Footer -->
+<footer class="w3-center w3-teal w3-padding-48">
+<p>Global Flu Tracker - Part of the Appleton Youth Education Initiative</p>
+<p>Data sources: WHO, CDC, FAO | Last updated: <span id="currentDate"></span></p>
+</footer>
+<!-- Leaflet JS -->
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+        // Constants
+        const SAFE_DISTANCES = {
+            bird: 100,  // km
+            swine: 50   // km
+        };
+
+        // Disease Data
+        const fluData = {
+            lastUpdated: new Date(),
+            humanCases: {
+                birdFlu: [
+                    { location: "Cambodia", lat: 12.6, lng: 105.0, cases: 16 },
+                    { location: "USA", lat: 37.1, lng: -95.7, cases: 58 },
+                    { location: "UK", lat: 55.4, lng: -3.4, cases: 4 },
+                    { location: "China", lat: 35.9, lng: 104.2, cases: 2 }
+                ],
+                swineFlu: [
+                    { location: "USA", lat: 37.1, lng: -95.7, cases: 8 },
+                    { location: "UK", lat: 55.4, lng: -3.4, cases: 1 },
+                    { location: "Taiwan", lat: 23.7, lng: 121.0, cases: 1 },
+                    { location: "Brazil", lat: -14.2, lng: -51.9, cases: 2 }
+                ]
+            },
+            animalCases: {
+                birdFlu: [
+                    { location: "Iowa, USA", lat: 41.5, lng: -93.6, cases: 15000, type: "poultry" },
+                    { location: "Hong Kong", lat: 22.3, lng: 114.2, cases: 5000, type: "poultry" },
+                    { location: "Netherlands", lat: 52.1, lng: 5.3, cases: 12000, type: "poultry" }
+                ],
+                swineFlu: [
+                    { location: "North Carolina, USA", lat: 35.5, lng: -79.0, cases: 5000, type: "pig" },
+                    { location: "Guangdong, China", lat: 23.1, lng: 113.3, cases: 8000, type: "pig" },
+                    { location: "São Paulo, Brazil", lat: -23.5, lng: -46.6, cases: 6000, type: "pig" }
+                ]
+            },
+            highRiskAreas: [
+                { name: "Live Poultry Markets", lat: 22.3, lng: 114.2, type: "bird", risk: "high" },
+                { name: "Pig Farms Midwest USA", lat: 41.5, lng: -93.6, type: "swine", risk: "high" },
+                { name: "Poultry Belt Europe", lat: 52.1, lng: 5.3, type: "bird", risk: "high" }
+            ]
+        };
+
+        // App State
+        const state = {
+            map: null,
+            userMarker: null,
+            currentLayer: "human",
+            markers: {
+                human: [],
+                animal: []
+            }
+        };
+
+        // Initialize Application
+        document.addEventListener('DOMContentLoaded', function() {
+            initApp();
+        });
+
+        function initApp() {
+            initMap();
+            updateStats();
+            document.getElementById('updateTime').textContent = formatDate(fluData.lastUpdated);
+            document.getElementById('currentDate').textContent = formatDate(new Date());
+        }
+
+        // Initialize Map - Fixed version
+        function initMap() {
+            state.map = L.map('map').setView([20, 0], 2);
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+            }).addTo(state.map);
+
+            // Add human cases by default
+            showData('human');
+        }
+
+        // Show human or animal data
+        function showData(layer) {
+            // Update active button
+            document.querySelectorAll('.toggle-btn').forEach(btn => {
+                btn.classList.toggle('active', btn.textContent.includes(layer === 'human' ? 'Human' : 'Animal'));
+            });
+
+            // Clear existing markers
+            state.markers[state.currentLayer].forEach(marker => state.map.removeLayer(marker));
+            state.markers[state.currentLayer] = [];
+            
+            state.currentLayer = layer;
+            
+            if (layer === 'human') {
+                addHumanCases();
+            } else {
+                addAnimalCases();
+            }
+            
+            // Always show high risk areas
+            addHighRiskAreas();
+        }
+
+        // Add human case markers
+        function addHumanCases() {
+            // Bird flu human cases
+            fluData.humanCases.birdFlu.forEach(location => {
+                const marker = L.circleMarker([location.lat, location.lng], {
+                    radius: 5 + Math.min(15, location.cases / 2),
+                    fillColor: '#d32f2f',
+                    color: '#fff',
+                    weight: 1,
+                    fillOpacity: 0.8
+                }).bindPopup(`
+                    <b>${location.location}</b><br>
+                    <i class="fa fa-dove"></i> Bird Flu Human Cases<br>
+                    Cases: ${location.cases}
+                `).addTo(state.map);
+                
+                state.markers.human.push(marker);
+            });
+            
+            // Swine flu human cases
+            fluData.humanCases.swineFlu.forEach(location => {
+                const marker = L.circleMarker([location.lat, location.lng], {
+                    radius: 5 + Math.min(15, location.cases),
+                    fillColor: '#fb8c00',
+                    color: '#fff',
+                    weight: 1,
+                    fillOpacity: 0.8
+                }).bindPopup(`
+                    <b>${location.location}</b><br>
+                    <i class="fa fa-piggy-bank"></i> Swine Flu Human Cases<br>
+                    Cases: ${location.cases}
+                `).addTo(state.map);
+                
+                state.markers.human.push(marker);
+            });
+        }
+
+        // Add animal case markers
+        function addAnimalCases() {
+            // Bird flu animal cases
+            fluData.animalCases.birdFlu.forEach(outbreak => {
+                const marker = L.circleMarker([outbreak.lat, outbreak.lng], {
+                    radius: 5 + Math.min(20, outbreak.cases / 1000),
+                    fillColor: '#9c27b0',
+                    color: '#fff',
+                    weight: 1,
+                    fillOpacity: 0.8
+                }).bindPopup(`
+                    <b>${outbreak.location}</b><br>
+                    <i class="fa fa-dove"></i> Bird Flu in ${outbreak.type === "poultry" ? "Poultry" : "Wild Birds"}<br>
+                    Cases: ${outbreak.cases.toLocaleString()}
+                `).addTo(state.map);
+                
+                state.markers.animal.push(marker);
+            });
+            
+            // Swine flu animal cases
+            fluData.animalCases.swineFlu.forEach(outbreak => {
+                const marker = L.circleMarker([outbreak.lat, outbreak.lng], {
+                    radius: 5 + Math.min(20, outbreak.cases / 500),
+                    fillColor: '#795548',
+                    color: '#fff',
+                    weight: 1,
+                    fillOpacity: 0.8
+                }).bindPopup(`
+                    <b>${outbreak.location}</b><br>
+                    <i class="fa fa-piggy-bank"></i> Swine Flu in Pigs<br>
+                    Cases: ${outbreak.cases.toLocaleString()}
+                `).addTo(state.map);
+                
+                state.markers.animal.push(marker);
+            });
+        }
+
+        // Add high risk areas
+        function addHighRiskAreas() {
+            fluData.highRiskAreas.forEach(area => {
+                const color = area.risk === "high" ? '#ff0000' : '#ff9800';
+                const rect = L.rectangle(
+                    [
+                        [area.lat - 2, area.lng - 2],
+                        [area.lat + 2, area.lng + 2]
+                    ],
+                    {
+                        color: color,
+                        weight: 1,
+                        fillColor: color,
+                        fillOpacity: 0.2
+                    }
+                ).bindPopup(`
+                    <b>${area.name}</b><br>
+                    <i class="fa fa-exclamation-triangle"></i> ${area.type === "bird" ? "Bird Flu" : "Swine Flu"} High Risk Area
+                `).addTo(state.map);
+                
+                // Add to both layers
+                state.markers.human.push(rect);
+                state.markers.animal.push(rect);
+            });
+        }
+
+        // Update statistics
+        function updateStats() {
+            document.getElementById('birdCases').textContent = 
+                fluData.humanCases.birdFlu.reduce((sum, loc) => sum + loc.cases, 0);
+            document.getElementById('swineCases').textContent = 
+                fluData.humanCases.swineFlu.reduce((sum, loc) => sum + loc.cases, 0);
+            document.getElementById('animalCases').textContent = 
+                fluData.animalCases.birdFlu.reduce((sum, loc) => sum + loc.cases, 0) +
+                fluData.animalCases.swineFlu.reduce((sum, loc) => sum + loc.cases, 0);
+            document.getElementById('highRisk').textContent = fluData.highRiskAreas.length;
+        }
+
+        // Format date
+        function formatDate(date) {
+            return date.toLocaleDateString('en-US', {
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+        }
+
+        // Toggle mobile menu
+        function toggleMobileMenu() {
+            const mobileNav = document.getElementById('mobileNav');
+            mobileNav.classList.toggle('w3-show');
+        }
+
+        // Get user location
+        function getUserLocation() {
+            if (!navigator.geolocation) {
+                showMessage("Geolocation is not supported by your browser", 'error');
+                return;
+            }
+            
+            showMessage("<i class='fa fa-spinner fa-spin'></i> Detecting your location...", 'loading');
+            
+            navigator.geolocation.getCurrentPosition(
+                position => {
+                    const { latitude: lat, longitude: lng } = position.coords;
+                    addUserMarker(lat, lng, "Your Location");
+                    assessRisk(lat, lng);
+                },
+                error => {
+                    showMessage(`Error: ${error.message}`, 'error');
+                },
+                { enableHighAccuracy: true }
+            );
+        }
+
+        // Add user marker
+        function addUserMarker(lat, lng, title) {
+            if (state.userMarker) {
+                state.map.removeLayer(state.userMarker);
+            }
+            
+            state.userMarker = L.marker([lat, lng], {
+                icon: L.divIcon({
+                    className: 'user-marker',
+                    html: '<i class="fa fa-user"></i>',
+                    iconSize: [30, 30]
+                }),
+                zIndexOffset: 1000
+            }).addTo(state.map)
+              .bindPopup(`<b>${title}</b><br>Coordinates: ${lat.toFixed(4)}, ${lng.toFixed(4)}`)
+              .openPopup();
+            
+            state.map.setView([lat, lng], 8);
+        }
+
+        // Search location
+        async function searchLocation() {
+            const location = document.getElementById('locationInput').value.trim();
+            if (!location) return;
+            
+            showMessage("<i class='fa fa-spinner fa-spin'></i> Searching location...", 'loading');
+            
+            try {
+                const coords = await geocodeLocation(location);
+                if (coords) {
+                    addUserMarker(coords.lat, coords.lng, location);
+                    assessRisk(coords.lat, coords.lng);
+                } else {
+                    showMessage("Location not found", 'error');
+                }
+            } catch (error) {
+                console.error("Geocoding error:", error);
+                showMessage("Error searching location", 'error');
+            }
+        }
+
+        // Geocode location
+        async function geocodeLocation(query) {
+            const response = await fetch(
+                `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}`
+            );
+            const data = await response.json();
+            return data.length > 0 ? { 
+                lat: parseFloat(data[0].lat), 
+                lng: parseFloat(data[0].lon) 
+            } : null;
+        }
+
+        // Assess risk
+        function assessRisk(lat, lng) {
+            const risks = {
+                bird: { distance: Infinity, cases: 0 },
+                swine: { distance: Infinity, cases: 0 }
+            };
+            
+            // Find nearest outbreaks
+            [...fluData.humanCases.birdFlu, ...fluData.animalCases.birdFlu].forEach(caseData => {
+                const distance = calculateDistance(lat, lng, caseData.lat, caseData.lng);
+                if (distance < risks.bird.distance) {
+                    risks.bird.distance = distance;
+                    risks.bird.cases = caseData.cases;
+                }
+            });
+            
+            [...fluData.humanCases.swineFlu, ...fluData.animalCases.swineFlu].forEach(caseData => {
+                const distance = calculateDistance(lat, lng, caseData.lat, caseData.lng);
+                if (distance < risks.swine.distance) {
+                    risks.swine.distance = distance;
+                    risks.swine.cases = caseData.cases;
+                }
+            });
+            
+            // Display results
+            displayRiskResults(risks.bird, risks.swine);
+        }
+
+        // Calculate distance
+        function calculateDistance(lat1, lon1, lat2, lon2) {
+            const R = 6371; // Earth radius in km
+            const φ1 = lat1 * Math.PI/180;
+            const φ2 = lat2 * Math.PI/180;
+            const Δφ = (lat2-lat1) * Math.PI/180;
+            const Δλ = (lon2-lon1) * Math.PI/180;
+            
+            const a = Math.sin(Δφ/2) * Math.sin(Δφ/2) +
+                      Math.cos(φ1) * Math.cos(φ2) *
+                      Math.sin(Δλ/2) * Math.sin(Δλ/2);
+            return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+        }
+
+        // Display risk results
+        function displayRiskResults(birdRisk, swineRisk) {
+            const birdLevel = getRiskLevel(birdRisk.distance, SAFE_DISTANCES.bird);
+            const swineLevel = getRiskLevel(swineRisk.distance, SAFE_DISTANCES.swine);
+            
+            document.getElementById('riskAssessment').innerHTML = `
+                <div class="risk-panel risk-${birdLevel}">
+                    <h4><i class="fa fa-dove"></i> Bird Flu Risk: ${birdLevel.toUpperCase()}</h4>
+                    <p>Nearest outbreak: ${birdRisk.distance.toFixed(1)} km (${birdRisk.cases} cases)</p>
+                    <p><i class="fa fa-lightbulb"></i> ${getRiskAdvice(birdLevel, 'bird')}</p>
+                </div>
+                <div class="risk-panel risk-${swineLevel}">
+                    <h4><i class="fa fa-piggy-bank"></i> Swine Flu Risk: ${swineLevel.toUpperCase()}</h4>
+                    <p>Nearest outbreak: ${swineRisk.distance.toFixed(1)} km (${swineRisk.cases} cases)</p>
+                    <p><i class="fa fa-lightbulb"></i> ${getRiskAdvice(swineLevel, 'swine')}</p>
+                </div>
+            `;
+        }
+
+        // Get risk level
+        function getRiskLevel(distance, safeDistance) {
+            const ratio = distance / safeDistance;
+            if (ratio < 0.3) return 'high';
+            if (ratio < 0.7) return 'medium';
+            if (ratio < 1) return 'low';
+            return 'none';
+        }
+
+        // Get risk advice
+        function getRiskAdvice(level, type) {
+            const general = {
+                bird: "Avoid contact with birds and poultry. Cook meat thoroughly.",
+                swine: "Practice good hygiene and consider vaccination."
+            }[type];
+            
+            const specific = {
+                high: "High risk area. Seek medical advice if symptomatic.",
+                medium: "Moderate risk. Monitor for symptoms.",
+                low: "Low risk. Maintain normal precautions.",
+                none: "No significant risk detected."
+            }[level];
+            
+            return `${specific} ${level !== 'none' ? general : ''}`;
+        }
+
+        // Show message
+        function showMessage(message, type) {
+            const element = document.getElementById('riskAssessment');
+            element.innerHTML = `<p class="w3-center ${type === 'error' ? 'w3-text-red' : ''}">${message}</p>`;
+        }
+
+        // Subscribe to alerts
+        function subscribeAlerts(event) {
+            event.preventDefault();
+            const email = document.getElementById('alertEmail').value;
+            const messageDiv = document.getElementById('subscriptionMessage');
+            
+            if (email && email.includes('@')) {
+                // In a real app, you would send this to a server
+                console.log("Submitting email:", email);
+                
+                // Simulate API call with setTimeout
+                setTimeout(() => {
+                    messageDiv.innerHTML = `
+                        <div class="w3-panel w3-green w3-round">
+                            <p><i class="fa fa-check-circle"></i> Thank you for subscribing! 
+                            <br>Confirmation sent to ${email}</p>
+                        </div>
+                    `;
+                    messageDiv.style.display = 'block';
+                    
+                    // Clear form
+                    document.getElementById('alertForm').reset();
+                    
+                    // Hide message after 5 seconds
+                    setTimeout(() => {
+                        messageDiv.style.display = 'none';
+                    }, 5000);
+                    
+                }, 1000);
+                
+                return true;
+            } else {
+                messageDiv.innerHTML = `
+                    <div class="w3-panel w3-red w3-round">
+                        <p><i class="fa fa-exclamation-circle"></i> Please enter a valid email address</p>
+                    </div>
+                `;
+                messageDiv.style.display = 'block';
+                
+                // Hide message after 3 seconds
+                setTimeout(() => {
+                    messageDiv.style.display = 'none';
+                }, 3000);
+                
+                return false;
+            }
+        }
+    </script>
+<script>
+async function runPrediction() {
+    alert("Running prediction. This is a simulated AI model.");
+
+    // Clear old animations
+    if (state.predictionLines) {
+        state.predictionLines.forEach(line => state.map.removeLayer(line));
+    }
+    state.predictionLines = [];
+
+    // Simulate prediction paths for each flu type
+    const futureFluPaths = {
+        bird: [
+            [12.6, 105.0], [20, 110], [28, 115], [35, 120], [42, 125] // e.g., Cambodia → Asia
+        ],
+        swine: [
+            [37.1, -95.7], [40, -90], [43, -85], [46, -80], [49, -75] // e.g., USA → Eastward
+        ]
+    };
+
+    const colors = {
+        bird: '#ff1744',
+        swine: '#ffa000'
+    };
+
+    for (let type in futureFluPaths) {
+        let path = futureFluPaths[type];
+        for (let i = 0; i < path.length - 1; i++) {
+            let delay = i * 1000;
+            setTimeout(() => {
+                const line = L.polyline([path[i], path[i+1]], {
+                    color: colors[type],
+                    weight: 3,
+                    opacity: 0.7,
+                    dashArray: '5, 10'
+                }).addTo(state.map);
+                state.predictionLines.push(line);
+            }, delay);
+        }
+    }
+
+    // Predict risk at user's location (mocked)
+    setTimeout(() => {
+        if (state.userMarker) {
+            const latlng = state.userMarker.getLatLng();
+            const riskLevel = Math.random() < 0.33 ? "HIGH" : (Math.random() < 0.5 ? "MEDIUM" : "LOW");
+            alert("Predicted risk at your location in 5 years: " + riskLevel);
+        } else {
+            alert("Prediction complete. Use 'Current Location' to assess your future risk.");
+        }
+    }, 6000);
+}
+
+
+
+function runAdvancedPrediction() {
+    // Clear existing predictions
+    state.map.eachLayer(layer => {
+        if (layer instanceof L.Polyline || layer instanceof L.CircleMarker) {
+            state.map.removeLayer(layer);
+        }
+    });
+
+    const PREDICTION_PATHS = {
+        birdFlu: [
+            {from: [35.6895, 139.6917], to: [40.7128, -74.0060], color: '#e74c3c'},
+            {from: [51.5074, -0.1278], to: [37.7749, -122.4194], color: '#e74c3c'},
+            {from: [19.0760, 72.8777], to: [-23.5505, -46.6333], color: '#e74c3c'}
+        ],
+        swineFlu: [
+            {from: [41.9028, 12.4964], to: [34.0522, -118.2437], color: '#2ecc71'},
+            {from: [1.3521, 103.8198], to: [48.8566, 2.3522], color: '#2ecc71'},
+            {from: [22.3193, 114.1694], to: [55.7558, 37.6173], color: '#2ecc71'}
+        ]
+    };
+
+    // Animate paths and markers
+    Object.values(PREDICTION_PATHS).forEach(fluType => {
+        fluType.forEach((path, index) => {
+            setTimeout(() => {
+                const polyline = L.polyline([path.from, path.to], {
+                    color: path.color,
+                    weight: 3,
+                    dashArray: '10',
+                    className: 'prediction-path'
+                }).addTo(state.map);
+
+                L.circleMarker(path.from, {
+                    radius: 10,
+                    color: path.color,
+                    fillColor: path.color,
+                    className: 'pulse-marker'
+                }).addTo(state.map);
+
+                L.circleMarker(path.to, {
+                    radius: 10,
+                    color: path.color,
+                    fillColor: path.color,
+                    className: 'pulse-marker'
+                }).addTo(state.map);
+
+                state.map.flyToBounds([path.from, path.to], {duration: 2});
+            }, index * 1000);
+        });
+    });
+}
+
+
+
+function toggleDarkMode() {
+    document.body.classList.toggle('dark-mode');
+}
+
+function clearAIPandemic() {
+    let toRemove = [];
+    state.map.eachLayer(layer => {
+        if (layer instanceof L.Polyline || layer instanceof L.CircleMarker || 
+            (layer.getElement && layer.getElement().classList.contains('pulse-marker'))) {
+            toRemove.push(layer);
+        }
+    });
+    toRemove.forEach(layer => state.map.removeLayer(layer));
+    alert("AI Pandemic Simulation removed.");
+}
+
+</script>
+</body>
+</html>
