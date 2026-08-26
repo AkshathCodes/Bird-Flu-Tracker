@@ -33,7 +33,7 @@ target_link_libraries(flu_core PUBLIC nlohmann_json::nlohmann_json)
 target_include_directories(flu_core PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 
 add_executable(bird_flu_tracker main.cpp)
-target_link_libraries(bird_flu_tracker PRIVATE httplib::httplib)
+target_link_libraries(bird_flu_tracker PRIVATE flu_core httplib::httplib)
 
 add_executable(backend_tests tests.cpp)
 target_link_libraries(backend_tests PRIVATE flu_core)
