@@ -1,7 +1,9 @@
 #include <cassert>
+#include <cmath>
 #include <cstdio>
 
 #include "flu_data.h"
+#include "risk.h"
 
 int main() {
     const FluData& data = getFluData();
@@ -26,6 +28,24 @@ int main() {
     assert(j["humanCases"]["birdFlu"][0]["location"] == "Cambodia");
     assert(j["highRiskAreas"].size() == 3);
 
-    std::printf("All flu_data tests passed\n");
+    assert(haversineDistanceKm(10.0, 20.0, 10.0, 20.0) == 0.0);
+    assert(std::fabs(haversineDistanceKm(0.0, 0.0, 0.0, 90.0) - 10007.5) < 1.0);
+    assert(std::fabs(haversineDistanceKm(90.0, 0.0, -90.0, 0.0) - 20015.1) < 1.0);
+
+    assert(getRiskLevel(10.0, 100.0) == "high");
+    assert(getRiskLevel(50.0, 100.0) == "medium");
+    assert(getRiskLevel(80.0, 100.0) == "low");
+    assert(getRiskLevel(150.0, 100.0) == "none");
+
+    assert(getRiskAdvice("high", "bird") ==
+        "High risk area. Seek medical advice if symptomatic. "
+        "Avoid contact with birds and poultry. Cook meat thoroughly.");
+    assert(getRiskAdvice("none", "swine") == "No significant risk detected. ");
+
+    RiskAssessment nearCambodia = assessRisk(12.6, 105.0, data);
+    assert(nearCambodia.bird.distance < 1.0);
+    assert(nearCambodia.bird.cases == 16);
+
+    std::printf("All tests passed\n");
     return 0;
 }

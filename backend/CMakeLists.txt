@@ -27,6 +27,7 @@ endif()
 
 add_library(flu_core STATIC
     flu_data.cpp
+    risk.cpp
 )
 target_link_libraries(flu_core PUBLIC nlohmann_json::nlohmann_json)
 target_include_directories(flu_core PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
