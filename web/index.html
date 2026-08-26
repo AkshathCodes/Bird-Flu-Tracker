@@ -420,8 +420,14 @@ body.dark-mode a {
         });
 
         async function initApp() {
-            const response = await fetch('/api/flu-data');
-            fluData = await response.json();
+            try {
+                const response = await fetch('/api/flu-data');
+                fluData = await response.json();
+            } catch (error) {
+                console.error("Failed to load flu data:", error);
+                showMessage("Could not load outbreak data from the server", 'error');
+                return;
+            }
             initMap();
             updateStats();
             document.getElementById('updateTime').textContent = formatDate(new Date());

@@ -1,4 +1,5 @@
 #include <chrono>
+#include <cstdio>
 #include <cstdlib>
 #include <filesystem>
 #include <thread>
@@ -27,7 +28,10 @@ int main(int argc, char** argv) {
     std::filesystem::path webDir = exeDir / "web";
 
     httplib::Server server;
-    server.set_mount_point("/", webDir.string());
+    if (!server.set_mount_point("/", webDir.string())) {
+        std::fprintf(stderr, "Error: web/ not found next to the executable (%s)\n", webDir.string().c_str());
+        return 1;
+    }
 
     server.Get("/api/flu-data", [](const httplib::Request&, httplib::Response& res) {
         res.set_content(fluDataToJson(getFluData()).dump(), "application/json");
@@ -59,6 +63,9 @@ int main(int argc, char** argv) {
     });
 
     std::thread(openBrowser).detach();
-    server.listen("localhost", 8080);
+    if (!server.listen("localhost", 8080)) {
+        std::fprintf(stderr, "Error: could not start server on localhost:8080 (port may already be in use).\n");
+        return 1;
+    }
     return 0;
 }

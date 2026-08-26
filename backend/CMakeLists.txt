@@ -38,6 +38,8 @@ target_link_libraries(bird_flu_tracker PRIVATE flu_core httplib::httplib)
 add_executable(backend_tests tests.cpp)
 target_link_libraries(backend_tests PRIVATE flu_core)
 
+add_custom_command(TARGET backend_tests POST_BUILD COMMAND backend_tests)
+
 add_custom_command(TARGET bird_flu_tracker POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_directory
         ${CMAKE_SOURCE_DIR}/web
