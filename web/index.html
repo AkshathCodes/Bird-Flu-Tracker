@@ -392,23 +392,6 @@ body.dark-mode a {
 </div>
 </div>
 </div>
-<div class="w3-panel w3-light-grey w3-padding-16 w3-margin-top">
-<h3><i class="fa fa-bell"></i> Alerts</h3>
-<p>Subscribe to receive outbreak notifications</p>
-<form id="alertForm" onsubmit="return subscribeAlerts(event)">
-<div class="w3-row">
-<div class="w3-col s8">
-<input class="w3-input w3-border" id="alertEmail" placeholder="Enter your email" required="" type="email"/>
-</div>
-<div class="w3-col s4">
-<button class="w3-button w3-teal w3-block" type="submit">
-<i class="fa fa-envelope"></i> Subscribe
-                        </button>
-</div>
-</div>
-</form>
-<div class="w3-panel w3-round" id="subscriptionMessage" style="display:none; margin-top:10px;"></div>
-</div>
 </div>
 <!-- Footer -->
 <footer class="w3-center w3-teal w3-padding-48">
@@ -418,49 +401,9 @@ body.dark-mode a {
 <!-- Leaflet JS -->
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
-        // Constants
-        const SAFE_DISTANCES = {
-            bird: 100,  // km
-            swine: 50   // km
-        };
-
-        // Disease Data
-        const fluData = {
-            lastUpdated: new Date(),
-            humanCases: {
-                birdFlu: [
-                    { location: "Cambodia", lat: 12.6, lng: 105.0, cases: 16 },
-                    { location: "USA", lat: 37.1, lng: -95.7, cases: 58 },
-                    { location: "UK", lat: 55.4, lng: -3.4, cases: 4 },
-                    { location: "China", lat: 35.9, lng: 104.2, cases: 2 }
-                ],
-                swineFlu: [
-                    { location: "USA", lat: 37.1, lng: -95.7, cases: 8 },
-                    { location: "UK", lat: 55.4, lng: -3.4, cases: 1 },
-                    { location: "Taiwan", lat: 23.7, lng: 121.0, cases: 1 },
-                    { location: "Brazil", lat: -14.2, lng: -51.9, cases: 2 }
-                ]
-            },
-            animalCases: {
-                birdFlu: [
-                    { location: "Iowa, USA", lat: 41.5, lng: -93.6, cases: 15000, type: "poultry" },
-                    { location: "Hong Kong", lat: 22.3, lng: 114.2, cases: 5000, type: "poultry" },
-                    { location: "Netherlands", lat: 52.1, lng: 5.3, cases: 12000, type: "poultry" }
-                ],
-                swineFlu: [
-                    { location: "North Carolina, USA", lat: 35.5, lng: -79.0, cases: 5000, type: "pig" },
-                    { location: "Guangdong, China", lat: 23.1, lng: 113.3, cases: 8000, type: "pig" },
-                    { location: "São Paulo, Brazil", lat: -23.5, lng: -46.6, cases: 6000, type: "pig" }
-                ]
-            },
-            highRiskAreas: [
-                { name: "Live Poultry Markets", lat: 22.3, lng: 114.2, type: "bird", risk: "high" },
-                { name: "Pig Farms Midwest USA", lat: 41.5, lng: -93.6, type: "swine", risk: "high" },
-                { name: "Poultry Belt Europe", lat: 52.1, lng: 5.3, type: "bird", risk: "high" }
-            ]
-        };
-
         // App State
+        let fluData = null;
+
         const state = {
             map: null,
             userMarker: null,
@@ -476,10 +419,12 @@ body.dark-mode a {
             initApp();
         });
 
-        function initApp() {
+        async function initApp() {
+            const response = await fetch('/api/flu-data');
+            fluData = await response.json();
             initMap();
             updateStats();
-            document.getElementById('updateTime').textContent = formatDate(fluData.lastUpdated);
+            document.getElementById('updateTime').textContent = formatDate(new Date());
             document.getElementById('currentDate').textContent = formatDate(new Date());
         }
 
@@ -721,145 +666,38 @@ body.dark-mode a {
             } : null;
         }
 
-        // Assess risk
-        function assessRisk(lat, lng) {
-            const risks = {
-                bird: { distance: Infinity, cases: 0 },
-                swine: { distance: Infinity, cases: 0 }
-            };
-            
-            // Find nearest outbreaks
-            [...fluData.humanCases.birdFlu, ...fluData.animalCases.birdFlu].forEach(caseData => {
-                const distance = calculateDistance(lat, lng, caseData.lat, caseData.lng);
-                if (distance < risks.bird.distance) {
-                    risks.bird.distance = distance;
-                    risks.bird.cases = caseData.cases;
-                }
-            });
-            
-            [...fluData.humanCases.swineFlu, ...fluData.animalCases.swineFlu].forEach(caseData => {
-                const distance = calculateDistance(lat, lng, caseData.lat, caseData.lng);
-                if (distance < risks.swine.distance) {
-                    risks.swine.distance = distance;
-                    risks.swine.cases = caseData.cases;
-                }
-            });
-            
-            // Display results
-            displayRiskResults(risks.bird, risks.swine);
-        }
-
-        // Calculate distance
-        function calculateDistance(lat1, lon1, lat2, lon2) {
-            const R = 6371; // Earth radius in km
-            const φ1 = lat1 * Math.PI/180;
-            const φ2 = lat2 * Math.PI/180;
-            const Δφ = (lat2-lat1) * Math.PI/180;
-            const Δλ = (lon2-lon1) * Math.PI/180;
-            
-            const a = Math.sin(Δφ/2) * Math.sin(Δφ/2) +
-                      Math.cos(φ1) * Math.cos(φ2) *
-                      Math.sin(Δλ/2) * Math.sin(Δλ/2);
-            return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+        // Assess risk (now backed by the C++ server)
+        async function assessRisk(lat, lng) {
+            try {
+                const response = await fetch(`/api/risk?lat=${lat}&lng=${lng}`);
+                const risks = await response.json();
+                displayRiskResults(risks.bird, risks.swine);
+            } catch (error) {
+                console.error("Risk assessment error:", error);
+                showMessage("Error assessing risk", 'error');
+            }
         }
 
         // Display risk results
         function displayRiskResults(birdRisk, swineRisk) {
-            const birdLevel = getRiskLevel(birdRisk.distance, SAFE_DISTANCES.bird);
-            const swineLevel = getRiskLevel(swineRisk.distance, SAFE_DISTANCES.swine);
-            
             document.getElementById('riskAssessment').innerHTML = `
-                <div class="risk-panel risk-${birdLevel}">
-                    <h4><i class="fa fa-dove"></i> Bird Flu Risk: ${birdLevel.toUpperCase()}</h4>
+                <div class="risk-panel risk-${birdRisk.level}">
+                    <h4><i class="fa fa-dove"></i> Bird Flu Risk: ${birdRisk.level.toUpperCase()}</h4>
                     <p>Nearest outbreak: ${birdRisk.distance.toFixed(1)} km (${birdRisk.cases} cases)</p>
-                    <p><i class="fa fa-lightbulb"></i> ${getRiskAdvice(birdLevel, 'bird')}</p>
+                    <p><i class="fa fa-lightbulb"></i> ${birdRisk.advice}</p>
                 </div>
-                <div class="risk-panel risk-${swineLevel}">
-                    <h4><i class="fa fa-piggy-bank"></i> Swine Flu Risk: ${swineLevel.toUpperCase()}</h4>
+                <div class="risk-panel risk-${swineRisk.level}">
+                    <h4><i class="fa fa-piggy-bank"></i> Swine Flu Risk: ${swineRisk.level.toUpperCase()}</h4>
                     <p>Nearest outbreak: ${swineRisk.distance.toFixed(1)} km (${swineRisk.cases} cases)</p>
-                    <p><i class="fa fa-lightbulb"></i> ${getRiskAdvice(swineLevel, 'swine')}</p>
+                    <p><i class="fa fa-lightbulb"></i> ${swineRisk.advice}</p>
                 </div>
             `;
-        }
-
-        // Get risk level
-        function getRiskLevel(distance, safeDistance) {
-            const ratio = distance / safeDistance;
-            if (ratio < 0.3) return 'high';
-            if (ratio < 0.7) return 'medium';
-            if (ratio < 1) return 'low';
-            return 'none';
-        }
-
-        // Get risk advice
-        function getRiskAdvice(level, type) {
-            const general = {
-                bird: "Avoid contact with birds and poultry. Cook meat thoroughly.",
-                swine: "Practice good hygiene and consider vaccination."
-            }[type];
-            
-            const specific = {
-                high: "High risk area. Seek medical advice if symptomatic.",
-                medium: "Moderate risk. Monitor for symptoms.",
-                low: "Low risk. Maintain normal precautions.",
-                none: "No significant risk detected."
-            }[level];
-            
-            return `${specific} ${level !== 'none' ? general : ''}`;
         }
 
         // Show message
         function showMessage(message, type) {
             const element = document.getElementById('riskAssessment');
             element.innerHTML = `<p class="w3-center ${type === 'error' ? 'w3-text-red' : ''}">${message}</p>`;
-        }
-
-        // Subscribe to alerts
-        function subscribeAlerts(event) {
-            event.preventDefault();
-            const email = document.getElementById('alertEmail').value;
-            const messageDiv = document.getElementById('subscriptionMessage');
-            
-            if (email && email.includes('@')) {
-                // In a real app, you would send this to a server
-                console.log("Submitting email:", email);
-                
-                // Simulate API call with setTimeout
-                setTimeout(() => {
-                    messageDiv.innerHTML = `
-                        <div class="w3-panel w3-green w3-round">
-                            <p><i class="fa fa-check-circle"></i> Thank you for subscribing! 
-                            <br>Confirmation sent to ${email}</p>
-                        </div>
-                    `;
-                    messageDiv.style.display = 'block';
-                    
-                    // Clear form
-                    document.getElementById('alertForm').reset();
-                    
-                    // Hide message after 5 seconds
-                    setTimeout(() => {
-                        messageDiv.style.display = 'none';
-                    }, 5000);
-                    
-                }, 1000);
-                
-                return true;
-            } else {
-                messageDiv.innerHTML = `
-                    <div class="w3-panel w3-red w3-round">
-                        <p><i class="fa fa-exclamation-circle"></i> Please enter a valid email address</p>
-                    </div>
-                `;
-                messageDiv.style.display = 'block';
-                
-                // Hide message after 3 seconds
-                setTimeout(() => {
-                    messageDiv.style.display = 'none';
-                }, 3000);
-                
-                return false;
-            }
         }
     </script>
 <script>
